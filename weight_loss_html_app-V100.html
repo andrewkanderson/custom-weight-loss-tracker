@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weight Loss Progress Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/umd/lucide.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const { Calendar, Target, TrendingDown, Moon, Footprints, Dumbbell, Utensils, Download, Upload, Save } = lucide;
+
+        const WeightLossTracker = () => {
+            const [currentWeek, setCurrentWeek] = useState('');
+            const [startingWeight, setStartingWeight] = useState(205);
+            const [goalWeight, setGoalWeight] = useState(185);
+            const [dailyData, setDailyData] = useState({
+                Monday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Tuesday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Wednesday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Thursday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Friday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Saturday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' },
+                Sunday: { date: '', weight: '', sleep: '', activities: { walk: false, workout: false, sleep7: false, deficit: false }, meals: '' }
+            });
+
+            const [weeklyNotes, setWeeklyNotes] = useState({
+                wentWell: '',
+                challenges: '',
+                adjustments: ''
+            });
+
+            const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+            // Save and Load Functions
+            const saveDataToFile = () => {
+                const dataToSave = {
+                    currentWeek,
+                    startingWeight,
+                    goalWeight,
+                    dailyData,
+                    weeklyNotes,
+                    savedDate: new Date().toISOString()
+                };
+                
+                const dataStr = JSON.stringify(dataToSave, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `weight-loss-tracker-${currentWeek || new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            const loadDataFromFile = (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const loadedData = JSON.parse(e.target.result);
+                        
+                        if (loadedData.currentWeek !== undefined) setCurrentWeek(loadedData.currentWeek);
+                        if (loadedData.startingWeight !== undefined) setStartingWeight(loadedData.startingWeight);
+                        if (loadedData.goalWeight !== undefined) setGoalWeight(loadedData.goalWeight);
+                        if (loadedData.dailyData) setDailyData(loadedData.dailyData);
+                        if (loadedData.weeklyNotes) setWeeklyNotes(loadedData.weeklyNotes);
+                        
+                        alert('Data loaded successfully!');
+                    } catch (error) {
+                        alert('Error loading file. Please make sure it\'s a valid tracker file.');
+                    }
+                };
+                reader.readAsText(file);
+                event.target.value = '';
+            };
+
+            const exportToCSV = () => {
+                const csvRows = [];
+                csvRows.push(['Day', 'Date', 'Weight (lbs)', 'Sleep (hrs)', 'Walk', 'Workout', 'Sleep 7+', 'Eat in Deficit', 'Meal Notes'].join(','));
+                
+                daysOfWeek.forEach(day => {
+                    const data = dailyData[day];
+                    const row = [
+                        day,
+                        data.date,
+                        data.weight,
+                        data.sleep,
+                        data.activities.walk ? 'Yes' : 'No',
+                        data.activities.workout ? 'Yes' : 'No',
+                        data.activities.sleep7 ? 'Yes' : 'No',
+                        data.activities.deficit ? 'Yes' : 'No',
+                        `"${data.meals.replace(/"/g, '""')}"`
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `weight-loss-data-${currentWeek || new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            };
+
+            // Calculate progress metrics
+            const calculateProgress = () => {
+                const weights = Object.values(dailyData)
+                    .map(day => parseFloat(day.weight))
+                    .filter(weight => !isNaN(weight));
+                
+                const currentWeight = weights.length > 0 ? weights[weights.length - 1] : startingWeight;
+                const totalProgress = startingWeight - currentWeight;
+                const remainingWeight = currentWeight - goalWeight;
+                
+                return { currentWeight, totalProgress, remainingWeight };
+            };
+
+            const calculateWeeklySummary = () => {
+                const summary = {
+                    walks: 0,
+                    workouts: 0,
+                    sleep7: 0,
+                    deficit: 0,
+                    avgSleep: 0,
+                    totalSleepHours: 0,
+                    sleepEntries: 0
+                };
+
+                Object.values(dailyData).forEach(day => {
+                    if (day.activities.walk) summary.walks++;
+                    if (day.activities.workout) summary.workouts++;
+                    if (day.activities.sleep7) summary.sleep7++;
+                    if (day.activities.deficit) summary.deficit++;
+                    
+                    const sleepHours = parseFloat(day.sleep);
+                    if (!isNaN(sleepHours)) {
+                        summary.totalSleepHours += sleepHours;
+                        summary.sleepEntries++;
+                    }
+                });
+
+                summary.avgSleep = summary.sleepEntries > 0 ? 
+                    (summary.totalSleepHours / summary.sleepEntries).toFixed(1) : 0;
+
+                return summary;
+            };
+
+            const updateDailyData = (day, field, value) => {
+                setDailyData(prev => ({
+                    ...prev,
+                    [day]: {
+                        ...prev[day],
+                        [field]: value
+                    }
+                }));
+            };
+
+            const updateActivity = (day, activity) => {
+                setDailyData(prev => ({
+                    ...prev,
+                    [day]: {
+                        ...prev[day],
+                        activities: {
+                            ...prev[day].activities,
+                            [activity]: !prev[day].activities[activity]
+                        }
+                    }
+                }));
+            };
+
+            const { currentWeight, totalProgress, remainingWeight } = calculateProgress();
+            const weeklySummary = calculateWeeklySummary();
+            const progressPercentage = ((20 - remainingWeight) / 20) * 100;
+
+            return (
+                <div className="max-w-6xl mx-auto p-6 bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen">
+                    {/* Header */}
+                    <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                                <Target className="text-blue-600" />
+                                Weight Loss Progress Tracker
+                            </h1>
+                            <div className="flex items-center gap-4">
+                                {/* Save/Load Controls */}
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={saveDataToFile}
+                                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        title="Save data to file"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        Save
+                                    </button>
+                                    
+                                    <label className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
+                                        <Upload className="w-4 h-4" />
+                                        Load
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            onChange={loadDataFromFile}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    
+                                    <button
+                                        onClick={exportToCSV}
+                                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                                        title="Export to CSV"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                        CSV
+                                    </button>
+                                </div>
+                                
+                                <div className="text-right">
+                                    <div className="text-sm text-gray-600">Week of:</div>
+                                    <input
+                                        type="text"
+                                        value={currentWeek}
+                                        onChange={(e) => setCurrentWeek(e.target.value)}
+                                        placeholder="MM/DD/YYYY"
+                                        className="text-lg font-semibold border-b-2 border-blue-200 focus:border-blue-500 outline-none"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Progress Overview */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <div className="bg-blue-100 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-blue-700">
+                                    <input
+                                        type="number"
+                                        value={startingWeight}
+                                        onChange={(e) => setStartingWeight(parseFloat(e.target.value) || 205)}
+                                        className="w-20 text-center bg-transparent border-none outline-none"
+                                        step="0.1"
+                                    />
+                                    lbs
+                                </div>
+                                <div className="text-sm text-blue-600">Starting Weight</div>
+                            </div>
+                            <div className="bg-green-100 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-green-700">{currentWeight.toFixed(1)} lbs</div>
+                                <div className="text-sm text-green-600">Current Weight</div>
+                            </div>
+                            <div className="bg-purple-100 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-purple-700">{totalProgress.toFixed(1)} lbs</div>
+                                <div className="text-sm text-purple-600">Progress Made</div>
+                            </div>
+                            <div className="bg-orange-100 p-4 rounded-lg text-center">
+                                <div className="text-2xl font-bold text-orange-700">
+                                    <input
+                                        type="number"
+                                        value={goalWeight}
+                                        onChange={(e) => setGoalWeight(parseFloat(e.target.value) || 185)}
+                                        className="w-20 text-center bg-transparent border-none outline-none"
+                                        step="0.1"
+                                    />
+                                    lbs
+                                </div>
+                                <div className="text-sm text-orange-600">Goal Weight</div>
+                            </div>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="mb-4">
+                            <div className="flex justify-between text-sm text-gray-600 mb-1">
+                                <span>Progress to Goal</span>
+                                <span>{Math.max(0, progressPercentage).toFixed(1)}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3">
+                                <div 
+                                    className="bg-gradient-to-r from-blue-500 to-green-500 h-3 rounded-full transition-all duration-500"
+                                    style={{ width: `${Math.min(100, Math.max(0, progressPercentage))}%` }}
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Daily Tracking Table */}
+                    <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+                        <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Calendar className="text-blue-600" />
+                            Daily Tracking
+                        </h2>
+                        
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="border-b-2 border-gray-200">
+                                        <th className="text-left p-3 font-semibold text-gray-700">Day</th>
+                                        <th className="text-left p-3 font-semibold text-gray-700">Date</th>
+                                        <th className="text-left p-3 font-semibold text-gray-700">Weight (lbs)</th>
+                                        <th className="text-left p-3 font-semibold text-gray-700">Sleep (hrs)</th>
+                                        <th className="text-left p-3 font-semibold text-gray-700">Daily Activities</th>
+                                        <th className="text-left p-3 font-semibold text-gray-700">Meal Planning</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {daysOfWeek.map((day, index) => (
+                                        <tr key={day} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
+                                            <td className="p-3 font-medium text-gray-800">{day}</td>
+                                            <td className="p-3">
+                                                <input
+                                                    type="text"
+                                                    value={dailyData[day].date}
+                                                    onChange={(e) => updateDailyData(day, 'date', e.target.value)}
+                                                    placeholder="MM/DD"
+                                                    className="w-20 p-1 border border-gray-300 rounded focus:border-blue-500 outline-none"
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <input
+                                                    type="number"
+                                                    value={dailyData[day].weight}
+                                                    onChange={(e) => updateDailyData(day, 'weight', e.target.value)}
+                                                    placeholder="205"
+                                                    step="0.1"
+                                                    className="w-20 p-1 border border-gray-300 rounded focus:border-blue-500 outline-none"
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <input
+                                                    type="number"
+                                                    value={dailyData[day].sleep}
+                                                    onChange={(e) => updateDailyData(day, 'sleep', e.target.value)}
+                                                    placeholder="8"
+                                                    step="0.5"
+                                                    className="w-16 p-1 border border-gray-300 rounded focus:border-blue-500 outline-none"
+                                                />
+                                            </td>
+                                            <td className="p-3">
+                                                <div className="flex flex-col gap-1">
+                                                    <label className="flex items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={dailyData[day].activities.walk}
+                                                            onChange={() => updateActivity(day, 'walk')}
+                                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <Footprints className="w-4 h-4 text-gray-600" />
+                                                        Walk
+                                                    </label>
+                                                    <label className="flex items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={dailyData[day].activities.workout}
+                                                            onChange={() => updateActivity(day, 'workout')}
+                                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <Dumbbell className="w-4 h-4 text-gray-600" />
+                                                        Workout
+                                                    </label>
+                                                    <label className="flex items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={dailyData[day].activities.sleep7}
+                                                            onChange={() => updateActivity(day, 'sleep7')}
+                                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <Moon className="w-4 h-4 text-gray-600" />
+                                                        Sleep 7+ hrs
+                                                    </label>
+                                                    <label className="flex items-center gap-2 text-sm">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={dailyData[day].activities.deficit}
+                                                            onChange={() => updateActivity(day, 'deficit')}
+                                                            className="rounded text-blue-600 focus:ring-blue-500"
+                                                        />
+                                                        <Utensils className="w-4 h-4 text-gray-600" />
+                                                        Eat in deficit
+                                                    </label>
+                                                </div>
+                                            </td>
+                                            <td className="p-3">
+                                                <textarea
+                                                    value={dailyData[day].meals}
+                                                    onChange={(e) => updateDailyData(day, 'meals', e.target.value)}
+                                                    placeholder="Meal notes..."
+                                                    className="w-32 h-16 p-1 border border-gray-300 rounded focus:border-blue-500 outline-none resize-none text-sm"
+                                                />
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Weekly Summary */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <TrendingDown className="text-green-600" />
+                                Weekly Summary
+                            </h3>
+                            
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                    <span className="flex items-center gap-2">
+                                        <Footprints className="w-4 h-4 text-blue-600" />
+                                        Walks completed
+                                    </span>
+                                    <span className="font-semibold text-blue-700">{weeklySummary.walks} / 7 days</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                                    <span className="flex items-center gap-2">
+                                        <Dumbbell className="w-4 h-4 text-purple-600" />
+                                        Workouts completed
+                                    </span>
+                                    <span className="font-semibold text-purple-700">{weeklySummary.workouts} / 2-3 planned</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center p-3 bg-indigo-50 rounded-lg">
+                                    <span className="flex items-center gap-2">
+                                        <Moon className="w-4 h-4 text-indigo-600" />
+                                        Days with 7+ hours sleep
+                                    </span>
+                                    <span className="font-semibold text-indigo-700">{weeklySummary.sleep7} / 7 days</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                    <span className="flex items-center gap-2">
+                                        <Utensils className="w-4 h-4 text-green-600" />
+                                        Days eating in deficit
+                                    </span>
+                                    <span className="font-semibold text-green-700">{weeklySummary.deficit} / 7 days</span>
+                                </div>
+                                
+                                <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                                    <span>Average sleep</span>
+                                    <span className="font-semibold text-orange-700">{weeklySummary.avgSleep} hours/night</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <h3 className="text-xl font-bold text-gray-800 mb-4">Weekly Reflection</h3>
+                            
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">What went well this week:</label>
+                                    <textarea
+                                        value={weeklyNotes.wentWell}
+                                        onChange={(e) => setWeeklyNotes(prev => ({ ...prev, wentWell: e.target.value }))}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 outline-none resize-none h-20"
+                                        placeholder="Celebrate your wins..."
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Challenges faced:</label>
+                                    <textarea
+                                        value={weeklyNotes.challenges}
+                                        onChange={(e) => setWeeklyNotes(prev => ({ ...prev, challenges: e.target.value }))}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 outline-none resize-none h-20"
+                                        placeholder="What made things difficult..."
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Adjustments for next week:</label>
+                                    <textarea
+                                        value={weeklyNotes.adjustments}
+                                        onChange={(e) => setWeeklyNotes(prev => ({ ...prev, adjustments: e.target.value }))}
+                                        className="w-full p-3 border border-gray-300 rounded-lg focus:border-blue-500 outline-none resize-none h-20"
+                                        placeholder="How will you improve..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Tips */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl shadow-lg p-6 mt-6">
+                        <h3 className="text-xl font-bold mb-3">💡 Tips for Success</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <div>• Weigh yourself at the same time each day</div>
+                            <div>• Focus on weekly trends, not daily fluctuations</div>
+                            <div>• Celebrate non-scale victories too</div>
+                            <div>• Consistency with tracking builds accountability</div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<WeightLossTracker />, document.getElementById('root'));
+    </script>
+</body>
+</html>
