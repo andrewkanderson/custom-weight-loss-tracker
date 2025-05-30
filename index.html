@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weight Loss Progress Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #dbeafe, #e0e7ff);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        }
+        .checkbox-wrapper { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            margin-bottom: 4px; 
+            font-size: 14px;
+        }
+        .progress-bar { 
+            transition: width 0.5s ease; 
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 500;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-blue { background: #2563eb; color: white; }
+        .btn-blue:hover { background: #1d4ed8; }
+        .btn-green { background: #16a34a; color: white; }
+        .btn-green:hover { background: #15803d; }
+        .btn-purple { background: #9333ea; color: white; }
+        .btn-purple:hover { background: #7c3aed; }
+        .input-field {
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            outline: none;
+        }
+        .input-field:focus {
+            border-color: #3b82f6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+        }
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        .bg-blue-50 { background: #eff6ff; }
+        .bg-purple-50 { background: #faf5ff; }
+        .bg-indigo-50 { background: #eef2ff; }
+        .bg-green-50 { background: #f0fdf4; }
+        .bg-orange-50 { background: #fff7ed; }
+        .text-blue-700 { color: #1d4ed8; }
+        .text-purple-700 { color: #7c3aed; }
+        .text-indigo-700 { color: #4338ca; }
+        .text-green-700 { color: #15803d; }
+        .text-orange-700 { color: #c2410c; }
+        .grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .progress-card {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .bg-blue-100 { background: #dbeafe; }
+        .bg-green-100 { background: #dcfce7; }
+        .bg-purple-100 { background: #f3e8ff; }
+        .bg-orange-100 { background: #fed7aa; }
+        .text-2xl { font-size: 1.5rem; font-weight: bold; }
+        .text-sm { font-size: 0.875rem; }
+        .progress-bg {
+            width: 100%;
+            height: 12px;
+            background: #e5e7eb;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(to right, #3b82f6, #10b981);
+            transition: width 0.5s ease;
+        }
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .card { padding: 1rem; }
+            table { font-size: 14px; }
+            th, td { padding: 8px; }
+            .btn { padding: 6px 12px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem;">
+                <h1 style="font-size: 2rem; font-weight: bold; color: #374151; margin: 0;">
+                    🎯 Weight Loss Progress Tracker
+                </h1>
+                <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <button onclick="saveData()" class="btn btn-blue">💾 Save</button>
+                    <label class="btn btn-green" style="cursor: pointer;">
+                        📁 Load
+                        <input type="file" accept=".json" onchange="loadData(this)" style="display: none;">
+                    </label>
+                    <button onclick="exportCSV()" class="btn btn-purple">📊 CSV</button>
+                    <div style="text-align: right;">
+                        <div style="font-size: 0.875rem; color: #6b7280;">Week of:</div>
+                        <input type="text" id="currentWeek" placeholder="MM/DD/YYYY" class="input-field" style="width: 120px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Overview -->
+            <div class="grid-4">
+                <div class="progress-card bg-blue-100">
+                    <div class="text-2xl" style="color: #1d4ed8;">
+                        <input type="number" id="startingWeight" value="205" step="0.1" style="width: 80px; text-align: center; background: transparent; border: none; outline: none; font-size: 1.5rem; font-weight: bold; color: #1d4ed8;">
+                        lbs
+                    </div>
+                    <div class="text-sm" style="color: #2563eb;">Starting Weight</div>
+                </div>
+                <div class="progress-card bg-green-100">
+                    <div class="text-2xl" style="color: #15803d;" id="currentWeight">205.0 lbs</div>
+                    <div class="text-sm" style="color: #16a34a;">Current Weight</div>
+                </div>
+                <div class="progress-card bg-purple-100">
+                    <div class="text-2xl" style="color: #7c3aed;" id="totalProgress">0.0 lbs</div>
+                    <div class="text-sm" style="color: #9333ea;">Progress Made</div>
+                </div>
+                <div class="progress-card bg-orange-100">
+                    <div class="text-2xl" style="color: #c2410c;">
+                        <input type="number" id="goalWeight" value="185" step="0.1" style="width: 80px; text-align: center; background: transparent; border: none; outline: none; font-size: 1.5rem; font-weight: bold; color: #c2410c;">
+                        lbs
+                    </div>
+                    <div class="text-sm" style="color: #ea580c;">Goal Weight</div>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div style="margin-bottom: 1rem;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.875rem; color: #6b7280; margin-bottom: 0.25rem;">
+                    <span>Progress to Goal</span>
+                    <span id="progressPercent">0.0%</span>
+                </div>
+                <div class="progress-bg">
+                    <div id="progressBar" class="progress-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Tracking Table -->
+        <div class="card">
+            <h2 style="font-size: 1.5rem; font-weight: bold; color: #374151; margin-bottom: 1rem;">
+                📅 Daily Tracking
+            </h2>
+            
+            <div style="overflow-x: auto;">
+                <table id="dailyTable">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Date</th>
+                            <th>Weight (lbs)</th>
+                            <th>Sleep (hrs)</th>
+                            <th>Activities</th>
+                            <th>Meal Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyTableBody">
+                        <!-- Table rows will be generated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Weekly Summary -->
+        <div class="grid-2">
+            <div class="card">
+                <h3 style="font-size: 1.25rem; font-weight: bold; color: #374151; margin-bottom: 1rem;">
+                    📈 Weekly Summary
+                </h3>
+                <div id="weeklySummary">
+                    <!-- Summary items will be generated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3 style="font-size: 1.25rem; font-weight: bold; color: #374151; margin-bottom: 1rem;">💭 Weekly Reflection</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: 1rem;">
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem;">What went well this week:</label>
+                        <textarea id="wentWell" class="input-field" style="width: 100%; height: 80px; resize: none;" placeholder="Celebrate your wins..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem;">Challenges faced:</label>
+                        <textarea id="challenges" class="input-field" style="width: 100%; height: 80px; resize: none;" placeholder="What made things difficult..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; font-size: 0.875rem; font-weight: 500; color: #374151; margin-bottom: 0.5rem;">Adjustments for next week:</label>
+                        <textarea id="adjustments" class="input-field" style="width: 100%; height: 80px; resize: none;" placeholder="How will you improve..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips -->
+        <div class="card" style="background: linear-gradient(135deg, #2563eb, #9333ea); color: white;">
+            <h3 style="font-size: 1.25rem; font-weight: bold; margin-bottom: 0.75rem;">💡 Tips for Success</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; font-size: 0.875rem;">
+                <div>• Weigh yourself at the same time each day</div>
+                <div>• Focus on weekly trends, not daily fluctuations</div>
+                <div>• Celebrate non-scale victories too</div>
+                <div>• Consistency with tracking builds accountability</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // App state
+        var appData = {
+            dailyData: {},
+            weeklyNotes: { wentWell: '', challenges: '', adjustments: '' }
+        };
+
+        var daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        // Initialize the app
+        function initApp() {
+            try {
+                createDailyTable();
+                updateProgress();
+                updateWeeklySummary();
+                
+                // Add event listeners
+                document.getElementById('startingWeight').addEventListener('input', updateProgress);
+                document.getElementById('goalWeight').addEventListener('input', updateProgress);
+                
+                console.log('App initialized successfully');
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                alert('Error loading app. Please refresh the page.');
+            }
+        }
+
+        function createDailyTable() {
+            var tbody = document.getElementById('dailyTableBody');
+            tbody.innerHTML = '';
+
+            for (var i = 0; i < daysOfWeek.length; i++) {
+                var day = daysOfWeek[i];
+                
+                if (!appData.dailyData[day]) {
+                    appData.dailyData[day] = {
+                        date: '', weight: '', sleep: '',
+                        activities: { walk: false, workout: false, sleep7: false, deficit: false },
+                        meals: ''
+                    };
+                }
+
+                var row = document.createElement('tr');
+                row.style.backgroundColor = i % 2 === 0 ? '#f9fafb' : 'white';
+                
+                row.innerHTML = 
+                    '<td style="font-weight: 500; color: #374151;">' + day + '</td>' +
+                    '<td><input type="text" value="' + appData.dailyData[day].date + '" onchange="updateDailyData(\'' + day + '\', \'date\', this.value)" placeholder="MM/DD" class="input-field" style="width: 80px;"></td>' +
+                    '<td><input type="number" value="' + appData.dailyData[day].weight + '" onchange="updateDailyData(\'' + day + '\', \'weight\', this.value)" placeholder="205" step="0.1" class="input-field" style="width: 80px;"></td>' +
+                    '<td><input type="number" value="' + appData.dailyData[day].sleep + '" onchange="updateDailyData(\'' + day + '\', \'sleep\', this.value)" placeholder="8" step="0.5" class="input-field" style="width: 60px;"></td>' +
+                    '<td>' +
+                        '<div class="checkbox-wrapper"><input type="checkbox" ' + (appData.dailyData[day].activities.walk ? 'checked' : '') + ' onchange="updateActivity(\'' + day + '\', \'walk\', this.checked)"><span>👣 Walk</span></div>' +
+                        '<div class="checkbox-wrapper"><input type="checkbox" ' + (appData.dailyData[day].activities.workout ? 'checked' : '') + ' onchange="updateActivity(\'' + day + '\', \'workout\', this.checked)"><span>🏋️ Workout</span></div>' +
+                        '<div class="checkbox-wrapper"><input type="checkbox" ' + (appData.dailyData[day].activities.sleep7 ? 'checked' : '') + ' onchange="updateActivity(\'' + day + '\', \'sleep7\', this.checked)"><span>🌙 Sleep 7+ hrs</span></div>' +
+                        '<div class="checkbox-wrapper"><input type="checkbox" ' + (appData.dailyData[day].activities.deficit ? 'checked' : '') + ' onchange="updateActivity(\'' + day + '\', \'deficit\', this.checked)"><span>🍽️ Eat in deficit</span></div>' +
+                    '</td>' +
+                    '<td><textarea onchange="updateDailyData(\'' + day + '\', \'meals\', this.value)" placeholder="Meal notes..." class="input-field" style="width: 120px; height: 60px; resize: none;">' + appData.dailyData[day].meals + '</textarea></td>';
+                
+                tbody.appendChild(row);
+            }
+        }
+
+        function updateDailyData(day, field, value) {
+            appData.dailyData[day][field] = value;
+            updateProgress();
+            updateWeeklySummary();
+        }
+
+        function updateActivity(day, activity, checked) {
+            appData.dailyData[day].activities[activity] = checked;
+            updateWeeklySummary();
+        }
+
+        function updateProgress() {
+            try {
+                var startingWeight = parseFloat(document.getElementById('startingWeight').value) || 205;
+                var goalWeight = parseFloat(document.getElementById('goalWeight').value) || 185;
+                
+                var weights = [];
+                for (var day in appData.dailyData) {
+                    var weight = parseFloat(appData.dailyData[day].weight);
+                    if (!isNaN(weight)) {
+                        weights.push(weight);
+                    }
+                }
+                
+                var currentWeight = weights.length > 0 ? weights[weights.length - 1] : startingWeight;
+                var totalProgress = startingWeight - currentWeight;
+                var progressPercentage = ((startingWeight - currentWeight) / (startingWeight - goalWeight)) * 100;
+                
+                document.getElementById('currentWeight').textContent = currentWeight.toFixed(1) + ' lbs';
+                document.getElementById('totalProgress').textContent = totalProgress.toFixed(1) + ' lbs';
+                document.getElementById('progressPercent').textContent = Math.max(0, progressPercentage).toFixed(1) + '%';
+                document.getElementById('progressBar').style.width = Math.min(100, Math.max(0, progressPercentage)) + '%';
+            } catch (error) {
+                console.error('Error updating progress:', error);
+            }
+        }
+
+        function updateWeeklySummary() {
+            try {
+                var summary = { walks: 0, workouts: 0, sleep7: 0, deficit: 0, totalSleepHours: 0, sleepEntries: 0 };
+
+                for (var day in appData.dailyData) {
+                    var dayData = appData.dailyData[day];
+                    if (dayData.activities.walk) summary.walks++;
+                    if (dayData.activities.workout) summary.workouts++;
+                    if (dayData.activities.sleep7) summary.sleep7++;
+                    if (dayData.activities.deficit) summary.deficit++;
+                    
+                    var sleepHours = parseFloat(dayData.sleep);
+                    if (!isNaN(sleepHours)) {
+                        summary.totalSleepHours += sleepHours;
+                        summary.sleepEntries++;
+                    }
+                }
+
+                var avgSleep = summary.sleepEntries > 0 ? (summary.totalSleepHours / summary.sleepEntries).toFixed(1) : 0;
+
+                document.getElementById('weeklySummary').innerHTML = 
+                    '<div class="summary-item bg-blue-50"><span>👣 Walks completed</span><span class="text-blue-700" style="font-weight: 600;">' + summary.walks + ' / 7 days</span></div>' +
+                    '<div class="summary-item bg-purple-50"><span>🏋️ Workouts completed</span><span class="text-purple-700" style="font-weight: 600;">' + summary.workouts + ' / 2-3 planned</span></div>' +
+                    '<div class="summary-item bg-indigo-50"><span>🌙 Days with 7+ hours sleep</span><span class="text-indigo-700" style="font-weight: 600;">' + summary.sleep7 + ' / 7 days</span></div>' +
+                    '<div class="summary-item bg-green-50"><span>🍽️ Days eating in deficit</span><span class="text-green-700" style="font-weight: 600;">' + summary.deficit + ' / 7 days</span></div>' +
+                    '<div class="summary-item bg-orange-50"><span>Average sleep</span><span class="text-orange-700" style="font-weight: 600;">' + avgSleep + ' hours/night</span></div>';
+            } catch (error) {
+                console.error('Error updating weekly summary:', error);
+            }
+        }
+
+        function saveData() {
+            try {
+                var dataToSave = {
+                    currentWeek: document.getElementById('currentWeek').value,
+                    startingWeight: document.getElementById('startingWeight').value,
+                    goalWeight: document.getElementById('goalWeight').value,
+                    dailyData: appData.dailyData,
+                    weeklyNotes: {
+                        wentWell: document.getElementById('wentWell').value,
+                        challenges: document.getElementById('challenges').value,
+                        adjustments: document.getElementById('adjustments').value
+                    },
+                    savedDate: new Date().toISOString()
+                };
+                
+                var dataStr = JSON.stringify(dataToSave, null, 2);
+                var dataBlob = new Blob([dataStr], { type: 'application/json' });
+                var url = URL.createObjectURL(dataBlob);
+                
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = 'weight-loss-tracker-' + (dataToSave.currentWeek || new Date().toISOString().split('T')[0]) + '.json';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                alert('Data saved successfully!');
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Error saving file: ' + error.message);
+            }
+        }
+
+        function loadData(input) {
+            var file = input.files[0];
+            if (!file) return;
+
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var loadedData = JSON.parse(e.target.result);
+                    
+                    if (loadedData.currentWeek) document.getElementById('currentWeek').value = loadedData.currentWeek;
+                    if (loadedData.startingWeight) document.getElementById('startingWeight').value = loadedData.startingWeight;
+                    if (loadedData.goalWeight) document.getElementById('goalWeight').value = loadedData.goalWeight;
+                    if (loadedData.dailyData) appData.dailyData = loadedData.dailyData;
+                    if (loadedData.weeklyNotes) {
+                        document.getElementById('wentWell').value = loadedData.weeklyNotes.wentWell || '';
+                        document.getElementById('challenges').value = loadedData.weeklyNotes.challenges || '';
+                        document.getElementById('adjustments').value = loadedData.weeklyNotes.adjustments || '';
+                    }
+                    
+                    createDailyTable();
+                    updateProgress();
+                    updateWeeklySummary();
+                    alert('Data loaded successfully!');
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    alert('Error loading file. Please make sure it\'s a valid tracker file.');
+                }
+            };
+            reader.readAsText(file);
+            input.value = '';
+        }
+
+        function exportCSV() {
+            try {
+                var csvRows = [];
+                csvRows.push(['Day', 'Date', 'Weight (lbs)', 'Sleep (hrs)', 'Walk', 'Workout', 'Sleep 7+', 'Eat in Deficit', 'Meal Notes'].join(','));
+                
+                for (var i = 0; i < daysOfWeek.length; i++) {
+                    var day = daysOfWeek[i];
+                    var data = appData.dailyData[day];
+                    var row = [
+                        day,
+                        data.date,
+                        data.weight,
+                        data.sleep,
+                        data.activities.walk ? 'Yes' : 'No',
+                        data.activities.workout ? 'Yes' : 'No',
+                        data.activities.sleep7 ? 'Yes' : 'No',
+                        data.activities.deficit ? 'Yes' : 'No',
+                        '"' + data.meals.replace(/"/g, '""') + '"'
+                    ];
+                    csvRows.push(row.join(','));
+                }
+                
+                var csvContent = csvRows.join('\n');
+                var blob = new Blob([csvContent], { type: 'text/csv' });
+                var url = URL.createObjectURL(blob);
+                
+                var link = document.createElement('a');
+                link.href = url;
+                link.download = 'weight-loss-data-' + (document.getElementById('currentWeek').value || new Date().toISOString().split('T')[0]) + '.csv';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
+                alert('CSV exported successfully!');
+            } catch (error) {
+                console.error('Error exporting CSV:', error);
+                alert('Error exporting CSV: ' + error.message);
+            }
+        }
+
+        // Initialize the app when the page loads
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initApp);
+        } else {
+            initApp();
+        }
+
+        // Fallback initialization
+        setTimeout(function() {
+            if (document.getElementById('dailyTableBody').children.length === 0) {
+                console.log('Fallback initialization triggered');
+                initApp();
+            }
+        }, 1000);
+    </script>
+</body>
+</html>
